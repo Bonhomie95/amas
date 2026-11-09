@@ -1,9 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["fra1"],
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/t/:code", "destination": "/ticket.html" },
-    { "source": "/favicon.ico", "destination": "/img/logo-mark.svg" }
+  "routes": [
+    { "src": "/", "dest": "/index.html" },
+    { "src": "/t/[^/]+", "dest": "/ticket.html" },
+    { "src": "/favicon.ico", "dest": "/img/logo-mark.svg" }
   ]
 }
