@@ -52,17 +52,18 @@ const isStaff = key => !!key && !!STAFF_KEY && timingSafeEqual(sha(key), sha(STA
 const PUBLIC_FIELDS = { projection: { _id: 0, name: 1, code: 1, ageRange: 1, checkedInAt: 1 } };
 
 let transport;
+const EHLO = new URL(BASE_URL).hostname; // the machine hostname can be junk (e.g. "My-Mac.lan guest wan"), which SMTP servers reject
 const mailer = () => (transport ??= (env.SMTP_HOST
   ? Promise.resolve(nodemailer.createTransport({
       host: env.SMTP_HOST, port: +(env.SMTP_PORT || 587),
       secure: String(env.SMTP_PORT).endsWith('465'), requireTLS: true, // 465/2465 = implicit TLS, others must STARTTLS before the password goes out
-      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS }, connectionTimeout: 10_000, socketTimeout: 20_000,
+      auth: { user: env.SMTP_USER, pass: env.SMTP_PASS }, connectionTimeout: 10_000, socketTimeout: 20_000, name: EHLO,
     }))
   : env.VERCEL_ENV === 'production'
     ? Promise.reject(new Error('SMTP is not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS)'))
     : nodemailer.createTestAccount().then(a => {
       console.log(`📭 No SMTP set, so emails go to a test inbox at https://ethereal.email (login ${a.user} / ${a.pass})`);
-      return nodemailer.createTransport({ ...a.smtp, auth: { user: a.user, pass: a.pass } });
+      return nodemailer.createTransport({ ...a.smtp, auth: { user: a.user, pass: a.pass }, name: EHLO });
     })
 ).catch(e => { transport = undefined; throw e; }));
 
@@ -111,6 +112,8 @@ app.post('/api/register', async (req, res) => {
     heardFrom: b.heardFrom,
     heardFromOther: b.heardFrom === 'Other' ? line(b.heardFromOther, 80) : '',
     attending: b.attending === 'yes' ? true : b.attending === 'no' ? false : null,
+    transport: b.attending === 'yes' && b.transport === 'yes',
+    pickup: b.attending === 'yes' && b.transport === 'yes' ? line(b.pickup, 120) : '',
     church: line(b.church, 100),
     assistance: text(b.assistance, 300),
     prayer: text(b.prayer, 1000),
@@ -123,6 +126,8 @@ app.post('/api/register', async (req, res) => {
   if (!AGE_RANGES.includes(r.ageRange)) errors.ageRange = 'Please pick your age range.';
   if (!SOURCES.includes(r.heardFrom)) errors.heardFrom = 'Please tell us how you heard about the program.';
   if (r.attending === null) errors.attending = 'Please let us know if you’ll be attending.';
+  if (r.attending && !['yes', 'no'].includes(b.transport)) errors.transport = 'Please let us know if you need free transport.';
+  if (r.transport && r.pickup.length < 2) errors.pickup = 'Please tell us your area or nearest bus stop.';
   if (Object.keys(errors).length) return res.status(400).json({ errors });
 
   const key = { email: r.email, nameKey: r.name.toLowerCase() };
@@ -200,7 +205,8 @@ function ticketHtml(d, url) {
   </td></tr>
   <tr><td style="padding:0 28px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF8F8;border-radius:14px"><tr><td style="padding:16px 18px;font-size:15px;line-height:1.7;color:#0B2A30">
-      📅 <b>${esc(EVENT.when)}</b><br>📍 <b>${esc(EVENT.venue)}</b><br><span style="color:#5B7479;padding-left:24px">${esc(EVENT.address)}</span>
+      📅 <b>${esc(EVENT.when)}</b><br>📍 <b>${esc(EVENT.venue)}</b><br><span style="color:#5B7479;padding-left:24px">${esc(EVENT.address)}</span>${d.transport ? `
+      <br><br>🚌 <b>Free transport booked</b> from ${esc(d.pickup)}<br><span style="color:#5B7479">We’ll call or WhatsApp you on ${esc(d.phone)} with the pickup point and time.</span>` : ''}
     </td></tr></table>
   </td></tr>
   <tr><td align="center" style="padding:22px 28px 6px">
@@ -223,7 +229,7 @@ ${EVENT.title}
 Theme: ${EVENT.theme} (Deut. 7:9)
 ${EVENT.when}
 ${EVENT.venue}, ${EVENT.address}
-
+${d.transport ? `\nFree transport booked from ${d.pickup}. We'll call or WhatsApp you on ${d.phone} with the pickup point and time.\n` : ''}
 Your pass: ${d.code}
 Show your QR pass: ${url}
 Add to calendar: ${CAL_URL}

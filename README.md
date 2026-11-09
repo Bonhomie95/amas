@@ -53,20 +53,22 @@ In production the server refuses to start without `MONGODB_URI`, and it never fa
 
 - Every person gets their own pass. Family members can share one email address (up to 10 passes per email).
 - If someone registers again with the same name and email, the pass is re-sent to that inbox rather than shown on screen. That way nobody can pull up another person's pass just by typing their email.
+- Attendees are asked whether they need free transport from anywhere in Lagos. Riders give their area or nearest bus stop, and their pass email confirms the booking.
 - "No, I can't make it" answers are saved without a pass. If that person registers again with "Yes", they get one.
 - Bots are filtered with a hidden honeypot field. If the form gets abused, add a CAPTCHA (Cloudflare Turnstile is free).
 
 ## The data
 
 Everything is in `amas.registrations`, one document per person:
-`name, email, phone, ageRange, heardFrom, heardFromOther, attending, church, assistance, prayer, updates, code, createdAt, emailedAt, emailError, checkedInAt`.
+`name, email, phone, ageRange, heardFrom, heardFromOther, attending, transport, pickup, church, assistance, prayer, updates, code, createdAt, emailedAt, emailError, checkedInAt`.
 
 - Browse or export it with MongoDB Compass (Export → CSV), or from the command line:
 
   ```bash
-  mongoexport --uri "mongodb://127.0.0.1:27017/amas" --collection registrations --type csv --out registrations.csv --fields name,email,phone,ageRange,heardFrom,heardFromOther,attending,church,assistance,prayer,updates,code,createdAt,checkedInAt
+  mongoexport --uri "mongodb://127.0.0.1:27017/amas" --collection registrations --type csv --out registrations.csv --fields name,email,phone,ageRange,heardFrom,heardFromOther,attending,transport,pickup,church,assistance,prayer,updates,code,createdAt,checkedInAt
   ```
 
+- To get the riders list for planning buses, filter on `{ "transport": true }` and look at the `pickup` and `phone` columns.
 - To find people whose email failed, filter on `{ "emailError": { "$exists": true } }`.
 
 ## Changing event details

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>A Night of Praise &amp; Worship 2.0 · Register free · AMAS Foundation</title>
-<meta name="description" content="Register free for A Night of Praise & Worship 2.0 (N.O.P.A.W 2.0) by AMAS Foundation. Friday, December 11, 2026, 7 PM at Regal Hall, Daystar Christian Centre, Oregun, Lagos. Your QR pass arrives by email.">
+<meta name="description" content="Register free for A Night of Praise & Worship 2.0 (N.O.P.A.W 2.0) by AMAS Foundation. Friday, December 11, 2026, 7 PM at Regal Hall, Daystar Christian Centre, Oregun, Lagos. Free transport from anywhere in Lagos. Your QR pass arrives by email.">
 <meta name="theme-color" content="#04363d">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="AMAS Foundation">
 <meta property="og:url" content="https://amas-nopaw.vercel.app/">
 <meta property="og:title" content="A Night of Praise &amp; Worship 2.0 · Free registration">
-<meta property="og:description" content="Fri, Dec 11, 2026 · 7 PM · Regal Hall, Daystar Christian Centre, Oregun, Lagos. Theme: Covenant Keeping God. Register free and get your QR pass by email.">
+<meta property="og:description" content="Fri, Dec 11, 2026 · 7 PM · Regal Hall, Daystar Christian Centre, Oregun, Lagos. Theme: Covenant Keeping God. Free entry and free transport from anywhere in Lagos. Register and get your QR pass by email.">
 <meta property="og:image" content="https://amas-nopaw.vercel.app/img/flyer.jpg">
 <meta property="og:image:width" content="760">
 <meta property="og:image:height" content="1142">
@@ -49,6 +49,11 @@
         <li><svg class="i" aria-hidden="true"><use href="/img/icons.svg#pin"/></svg><div><b>Regal Hall</b><span>Daystar Christian Centre, Oregun, Lagos</span></div></li>
       </ul>
 
+      <a class="ride-banner" href="#register">
+        <svg class="i" aria-hidden="true"><use href="/img/icons.svg#bus"/></svg>
+        <div><b>Free transport from anywhere in Lagos</b><span>Choose “Yes, pick me up” when you register</span></div>
+      </a>
+
       <div class="countdown" role="timer" aria-label="Countdown to the event">
         <div><b data-cd>--</b><small>Days</small></div>
         <div><b data-cd>--</b><small>Hours</small></div>
@@ -58,7 +63,7 @@
 
       <div class="cta-row">
         <a class="btn-gold" href="#register">Reserve my free seat <svg class="i" aria-hidden="true"><use href="/img/icons.svg#arrow"/></svg></a>
-        <p class="cta-note">Free entry · Your QR pass arrives by email</p>
+        <p class="cta-note">Free entry · Free transport · QR pass by email</p>
       </div>
 
       <div class="lineup">
@@ -151,6 +156,20 @@
           <p class="err" id="attending-err" data-for="attending"></p>
         </fieldset>
 
+        <fieldset class="field" id="ride" aria-describedby="transport-err" hidden>
+          <legend>Need free transport? <span class="req" aria-hidden="true">*</span> <span class="opt-tag">(from anywhere in Lagos)</span></legend>
+          <div class="choice">
+            <label class="opt"><input type="radio" name="transport" value="yes" required><span><b>Yes, pick me up</b><small>Free, from your area</small></span></label>
+            <label class="opt"><input type="radio" name="transport" value="no"><span><b>No, thanks</b><small>I’ll make my own way</small></span></label>
+          </div>
+          <p class="err" id="transport-err" data-for="transport"></p>
+          <div id="pickup-box" hidden>
+            <input class="input other" id="pickup" name="pickup" type="text" maxlength="120" placeholder="Your area or nearest bus stop" aria-label="Pickup area or nearest bus stop" aria-describedby="pickup-hint pickup-err">
+            <p class="hint" id="pickup-hint">e.g. Ikorodu Garage, Ojota, Ajah. We’ll call or WhatsApp you with the pickup point and time.</p>
+            <p class="err" id="pickup-err" data-for="pickup"></p>
+          </div>
+        </fieldset>
+
         <details class="more">
           <summary><span>Add more details <span class="opt-tag">(optional)</span></span></summary>
           <div class="field">
@@ -196,6 +215,7 @@
       <h2 id="venue-h">Regal Hall, Daystar Christian Centre</h2>
       <p>Plot A3C, Ikosi Road, Oregun, Lagos 101233</p>
       <p>Friday, December 11, 2026 · 7:00 PM</p>
+      <p class="ride-note"><svg class="i" aria-hidden="true"><use href="/img/icons.svg#bus"/></svg>Free transport from anywhere in Lagos. Choose “Yes, pick me up” when you register.</p>
       <div class="row">
         <a class="pill-link" href="https://www.google.com/maps/search/?api=1&amp;query=Daystar%20Christian%20Centre%2C%20Ikosi%20Road%2C%20Oregun%2C%20Lagos" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/img/icons.svg#nav"/></svg>Get directions</a>
         <a class="pill-link" href="/nopaw.ics"><svg class="i" aria-hidden="true"><use href="/img/icons.svg#cal-plus"/></svg>Add to calendar</a>
@@ -259,6 +279,8 @@ function validate(d) {
   if (!d.ageRange) e.ageRange = 'Please pick your age range.';
   if (!d.heardFrom) e.heardFrom = 'Please tell us how you heard about the program.';
   if (!d.attending) e.attending = 'Please let us know if you’ll be attending.';
+  if (d.attending === 'yes' && !d.transport) e.transport = 'Please let us know if you need free transport.';
+  if (d.attending === 'yes' && d.transport === 'yes' && (d.pickup || '').trim().length < 2) e.pickup = 'Please tell us your area or nearest bus stop.';
   return e;
 }
 function setErr(name, msg = '') {
@@ -286,7 +308,15 @@ form.addEventListener('change', e => {
   if (type === 'radio') setErr(name);
   if (name === 'heardFrom') $('heardFromOther').hidden = value !== 'Other';
   if (name === 'attending') $('submit-text').textContent = value === 'no' ? 'Send my response' : 'Get my QR pass';
+  if (name === 'attending' || name === 'transport') syncRide();
 });
+
+// The transport question only matters to people who are coming
+function syncRide() {
+  const going = form.elements.attending.value === 'yes';
+  $('ride').hidden = !going;
+  $('pickup-box').hidden = !(going && form.elements.transport.value === 'yes');
+}
 
 // Catch the classic email typos before the pass goes nowhere
 const TYPOS = { 'gmial.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gmal.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gmaill.com': 'gmail.com', 'gmail.co': 'gmail.com', 'gmail.con': 'gmail.com', 'gmail.cm': 'gmail.com', 'yahooo.com': 'yahoo.com', 'yaho.com': 'yahoo.com', 'yahoo.co': 'yahoo.com', 'yahoo.con': 'yahoo.com', 'hotmial.com': 'hotmail.com', 'hotmail.co': 'hotmail.com', 'outlok.com': 'outlook.com', 'iclod.com': 'icloud.com' };
@@ -317,7 +347,7 @@ form.addEventListener('submit', async e => {
     const out = await res.json().catch(() => ({ error: 'Something went wrong. Please try again.' }));
     if (out.errors) return void showErrors(out.errors);
     if (out.error) throw new Error(out.error);
-    save('amas:prefill', { email: d.email, phone: d.phone, heardFrom: d.heardFrom, heardFromOther: d.heardFromOther, church: d.church });
+    save('amas:prefill', { email: d.email, phone: d.phone, heardFrom: d.heardFrom, heardFromOther: d.heardFromOther, church: d.church, transport: d.transport, pickup: d.pickup });
     if (out.status === 'registered') {
       save('amas:new', { email: d.email.trim(), emailed: out.emailed, preview: out.preview });
       return void location.assign(`/t/${out.code}?new`);
@@ -353,7 +383,9 @@ $('done-btn').onclick = () => {
   form.hidden = false;
   if ($('done').dataset.status === 'declined') {
     form.elements.attending.value = 'yes';
-    return form.requestSubmit();
+    $('submit-text').textContent = 'Get my QR pass';
+    syncRide();
+    return form.querySelector('[name="transport"]').focus(); // they still need to answer the transport question
   }
   $('name').value = '';
   form.querySelectorAll('[name="ageRange"]').forEach(r => { r.checked = false; });
@@ -364,6 +396,7 @@ $('done-btn').onclick = () => {
 if (new URLSearchParams(location.search).has('again')) {
   for (const [k, v] of Object.entries(load('amas:prefill'))) if (v && form.elements[k]) form.elements[k].value = v;
   $('heardFromOther').hidden = form.elements.heardFrom.value !== 'Other';
+  syncRide();
   $('name').focus();
 }
 </script>

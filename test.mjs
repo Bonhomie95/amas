@@ -9,7 +9,7 @@ const email = `test-${Date.now()}@example.test`;
 const call = (path, body, headers = {}) =>
   fetch(BASE + path, { method: body === undefined ? 'GET' : 'POST', headers: { 'content-type': 'application/json', ...headers }, body: body && JSON.stringify(body) })
     .then(async r => ({ http: r.status, ...(await r.json()) }));
-const person = over => ({ name: 'Ada Test', email, phone: '0803 123 4567', ageRange: '21-35', heardFrom: 'WhatsApp', attending: 'yes', ...over });
+const person = over => ({ name: 'Ada Test', email, phone: '0803 123 4567', ageRange: '21-35', heardFrom: 'WhatsApp', attending: 'yes', transport: 'no', ...over });
 
 const mongo = await new MongoClient(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017').connect();
 try {
@@ -51,7 +51,15 @@ try {
     assert.equal((await call('/api/tickets/AMAS-ZZZZ-ZZZZ/checkin', null, { 'x-staff-key': KEY })).http, 404);
   } else console.log('(STAFF_KEY not in env, skipped check-in tests)');
 
-  for (let i = 0; i < 7; i++) await call('/api/register', person({ name: `Guest ${i} Test`, attending: 'no' }));
+  r = await call('/api/register', person({ name: 'Ride Test', transport: undefined }));
+  assert.deepEqual(Object.keys(r.errors), ['transport'], 'attendees must answer the transport question');
+  r = await call('/api/register', person({ name: 'Ride Test', transport: 'yes' }));
+  assert.deepEqual(Object.keys(r.errors), ['pickup'], 'riders must give a pickup area');
+  assert.equal((await call('/api/register', person({ name: 'Ride Test', transport: 'yes', pickup: '  Ikorodu   Garage ' }))).http, 201);
+  const ride = await mongo.db('amas').collection('registrations').findOne({ email, nameKey: 'ride test' });
+  assert.deepEqual([ride.transport, ride.pickup], [true, 'Ikorodu Garage'], 'pickup stored, tidied');
+
+  for (let i = 0; i < 6; i++) await call('/api/register', person({ name: `Guest ${i} Test`, attending: 'no' }));
   assert.equal((await call('/api/register', person({ name: 'One Too Many' }))).http, 429, 'per-email cap');
 
   console.log('✅ all checks passed');
