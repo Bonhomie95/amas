@@ -74,4 +74,5 @@ Everything is in `amas.registrations`, one document per person:
 ## Changing event details
 
 The event details appear in four places: `EVENT` in `server.js` (the email), `public/index.html`, `public/ticket.html` and `public/nopaw.ics`.
+The contact numbers are in `EVENT.contacts` (email) and in the contact block of `public/index.html` and `public/ticket.html`.
 The age ranges and "how did you hear" options are defined in both `server.js` and `public/index.html`, so keep the two lists in sync.

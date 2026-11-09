@@ -259,6 +259,22 @@ textarea.input { min-height: 96px; resize: vertical; }
 .choirs { margin: 14px 16px 0; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .12); font-size: .92rem; color: #dff3f4; }
 .choirs small { display: block; margin-bottom: 2px; }
 
+.contact { max-width: 520px; margin: 26px auto 0; padding: 16px 18px; text-align: left; border-radius: 18px; background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .13); }
+.contact .contact-h { margin: 0 0 12px; font-weight: 600; color: #fff; }
+.contact-list { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.contact-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.contact-list .num { flex: 1 1 100%; font-size: 1.08rem; font-weight: 700; letter-spacing: .02em; color: var(--gold-200); }
+.cbtn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .22); background: rgba(255, 255, 255, .08); color: #fff;
+  font: 600 .9rem var(--body); text-decoration: none; transition: background .2s;
+}
+.cbtn:hover { background: rgba(255, 255, 255, .16); }
+.cbtn .i { width: 18px; height: 18px; color: var(--gold); }
+.cbtn.wa { background: #15803d; border-color: #15803d; }
+.cbtn.wa:hover { background: #166534; }
+.cbtn.wa .i { color: #fff; }
+.pass-wrap .contact { margin-top: 26px; }
 .scripture { padding: 52px 16px; text-align: center; background: linear-gradient(180deg, transparent, rgba(1, 18, 22, .55) 30%, rgba(1, 18, 22, .55) 70%, transparent); }
 .scripture blockquote { max-width: 760px; margin: 0 auto; }
 .scripture p { margin: 0 0 14px; font: 600 clamp(1.15rem, 4.6vw, 1.6rem)/1.5 var(--display); color: #fff; }
@@ -362,6 +378,7 @@ dialog.lightbox img { display: block; width: 100%; height: auto; max-height: 94d
   .hero { text-align: left; padding-top: 26px; }
   .facts, .ride-banner { margin-left: 0; }
   .ride-note { justify-content: flex-start; }
+  .venue .contact { margin-left: 0; }
   .countdown { justify-content: flex-start; }
   .cta-row { display: none; }
   .lineup { margin-inline: 0; border: 1px solid rgba(255, 179, 0, .3); border-radius: 20px; }

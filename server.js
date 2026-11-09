@@ -23,7 +23,9 @@ const EVENT = {
   when: 'Friday, December 11, 2026 · 7:00 PM',
   venue: 'Regal Hall, Daystar Christian Centre',
   address: 'Plot A3C, Ikosi Road, Oregun, Lagos',
+  contacts: ['+234 803 346 9409', '+234 803 325 6726'], // call, text or WhatsApp; also listed in public/index.html and ticket.html
 };
+const digits = n => n.replace(/\D/g, '');
 const CAL_URL = 'https://calendar.google.com/calendar/render?' + new URLSearchParams({
   action: 'TEMPLATE', text: EVENT.title, dates: '20261211T180000Z/20261211T220000Z', // 7–11 PM WAT
   location: `${EVENT.venue}, ${EVENT.address}`, details: `Theme: ${EVENT.theme} (Deut. 7:9). Bring your QR pass. Entry is free.`,
@@ -215,6 +217,10 @@ function ticketHtml(d, url) {
   <tr><td align="center" style="padding:8px 28px 24px;font-size:14px">
     <a href="${esc(CAL_URL)}" style="color:#028F99">Add to calendar</a> &nbsp;·&nbsp; <a href="${esc(MAP_URL)}" style="color:#028F99">Get directions</a>
   </td></tr>
+  <tr><td align="center" style="padding:0 28px 24px;font-size:14px;line-height:1.8;color:#0B2A30">
+    <b>Questions about the event or transport?</b><br>Call, text or WhatsApp us:<br>
+    ${EVENT.contacts.map(n => `<a href="tel:+${digits(n)}" style="color:#04363D;font-weight:bold;text-decoration:none">${esc(n)}</a> &nbsp;·&nbsp; <a href="https://wa.me/${digits(n)}" style="color:#15803d;font-weight:bold">WhatsApp</a>`).join('<br>')}
+  </td></tr>
   <tr><td style="padding:18px 28px;background:#FFF6DD;font-size:13px;line-height:1.6;color:#5B4A1F">
     Show this QR code at the entrance, on your phone or printed. Each pass admits <b>one person</b>, so every guest needs their own. Entry is free.
   </td></tr>
@@ -234,6 +240,8 @@ Your pass: ${d.code}
 Show your QR pass: ${url}
 Add to calendar: ${CAL_URL}
 Directions: ${MAP_URL}
+
+Questions about the event or transport? Call, text or WhatsApp us: ${EVENT.contacts.join(' or ')}
 
 Show your QR code at the entrance. Each pass admits one person. Entry is free.
 AMAS Foundation`;
