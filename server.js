@@ -3,13 +3,13 @@ import { MongoClient } from 'mongodb';
 import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const env = process.env;
 const PORT = env.PORT || 3000;
-const BASE_URL = (env.BASE_URL || `http://localhost:${PORT}`).replace(/\/+$/, ''); // never from the Host header: it ends up in emails
-const STAFF_KEY = env.STAFF_KEY || randomBytes(6).toString('base64url');
+// Never taken from the Host header (it ends up in emails). On Vercel it defaults to the production domain.
+const BASE_URL = (env.BASE_URL || (env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${env.VERCEL_PROJECT_PRODUCTION_URL}` : `http://localhost:${PORT}`)).replace(/\/+$/, '');
+const STAFF_KEY = env.STAFF_KEY || (env.VERCEL ? '' : randomBytes(6).toString('base64url')); // serverless instances can't share a random key
 const PUBLIC = join(import.meta.dirname, 'public');
 
 // Keep in sync with the chips in public/index.html
@@ -30,7 +30,8 @@ const CAL_URL = 'https://calendar.google.com/calendar/render?' + new URLSearchPa
 });
 const MAP_URL = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Daystar Christian Centre, Ikosi Road, Oregun, Lagos');
 
-const mongo = await new MongoClient(env.MONGODB_URI || 'mongodb://127.0.0.1:27017').connect();
+if (env.VERCEL && !env.MONGODB_URI) throw new Error('MONGODB_URI is not set. Add it in Vercel → Settings → Environment Variables.');
+const mongo = await new MongoClient(env.MONGODB_URI || 'mongodb://127.0.0.1:27017', { maxPoolSize: 10 }).connect(); // Atlas free tier caps connections
 const regs = mongo.db('amas').collection('registrations');
 await regs.createIndex({ email: 1, nameKey: 1 }, { unique: true });
 await regs.createIndex({ code: 1 }, { unique: true });
@@ -44,7 +45,7 @@ const newCode = () => 'AMAS-' + Array.from({ length: 8 }, (_, i) => (i === 4 ? '
 const passUrl = code => `${BASE_URL}/t/${code}`;
 const QR = { width: 600, margin: 2, color: { dark: '#06343B', light: '#FFFFFF' } };
 const sha = s => createHash('sha256').update(String(s)).digest();
-const isStaff = key => !!key && timingSafeEqual(sha(key), sha(STAFF_KEY));
+const isStaff = key => !!key && !!STAFF_KEY && timingSafeEqual(sha(key), sha(STAFF_KEY));
 const PUBLIC_FIELDS = { projection: { _id: 0, name: 1, code: 1, ageRange: 1, checkedInAt: 1 } };
 
 let transport;
@@ -53,7 +54,9 @@ const mailer = () => (transport ??= (env.SMTP_HOST
       host: env.SMTP_HOST, port: +(env.SMTP_PORT || 587), secure: String(env.SMTP_PORT).endsWith('465'), // 465/2465 = implicit TLS
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS }, connectionTimeout: 10_000, socketTimeout: 20_000,
     }))
-  : nodemailer.createTestAccount().then(a => {
+  : env.VERCEL_ENV === 'production'
+    ? Promise.reject(new Error('SMTP is not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS)'))
+    : nodemailer.createTestAccount().then(a => {
       console.log(`📭 No SMTP set, so emails go to a test inbox at https://ethereal.email (login ${a.user} / ${a.pass})`);
       return nodemailer.createTransport({ ...a.smtp, auth: { user: a.user, pass: a.pass } });
     })
@@ -69,7 +72,7 @@ async function sendTicket(doc) {
       html: ticketHtml(doc, url),
       text: ticketText(doc, url),
       attachments: [
-        { filename: 'amas-logo.png', path: join(PUBLIC, 'img/logo.png'), cid: 'logo' },
+        { filename: 'amas-logo.png', path: `${BASE_URL}/img/logo.png`, cid: 'logo' }, // from the CDN: Vercel functions don't bundle public/
         { filename: `${doc.code}.png`, content: await QRCode.toBuffer(url, QR), cid: 'qr' },
       ],
     });
@@ -89,9 +92,9 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '20kb' }));
 
-app.get('/', async (req, res) => res.type('html').send((await readFile(join(PUBLIC, 'index.html'), 'utf8')).replaceAll('%BASE_URL%', BASE_URL)));
+// Locally Express serves the pages; on Vercel the CDN serves public/ and vercel.json rewrites /t/:code
 app.get('/t/:code', (req, res) => res.sendFile(join(PUBLIC, 'ticket.html')));
-app.use(express.static(PUBLIC, { index: false }));
+app.use(express.static(PUBLIC));
 
 app.post('/api/register', async (req, res) => {
   const b = req.body || {};
@@ -163,11 +166,12 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({ error: err.status ? 'Invalid request.' : 'Something went wrong. Please try again.' });
 });
 
-app.listen(PORT, err => {
+if (!env.STAFF_KEY && STAFF_KEY) console.log(`🔑 STAFF_KEY not set, so this run's staff key is: ${STAFF_KEY}`);
+if (!env.VERCEL) app.listen(PORT, err => {
   if (err) throw err;
   console.log(`🎶 Registration open at ${BASE_URL}`);
-  if (!env.STAFF_KEY) console.log(`🔑 STAFF_KEY not set, so this run's staff key is: ${STAFF_KEY}`);
 });
+export default app; // Vercel runs the exported app as a function
 
 // ---------- email ----------
 function ticketHtml(d, url) {
