@@ -31,13 +31,23 @@ The terminal prints a preview link for each email, and the pass page shows an "O
    - red **Not a valid pass**
 3. If the attendee's phone is dead, type the code printed under their QR: `<your-site>/t/AMAS-XXXX-XXXX`.
 
-## Going live
+## Live on Vercel
 
-1. **Database**: set `MONGODB_URI` to your Atlas connection string. The `amas` database and its indexes are created on start.
-2. **Email**: set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` and `MAIL_FROM`. Gmail with an app password covers about 500 emails a day. For bigger volumes, use the SMTP settings from Brevo, Resend, SendGrid or Mailgun.
-3. **`BASE_URL`**: set this to the public address, e.g. `https://register.amasfoundation.org`. Every QR code and email link contains it, so set it **before** you share the link.
-4. **`STAFF_KEY`**: use a long passphrase.
-5. Deploy to anything that runs Node (Render, Railway, Fly, a VPS) with `npm install && npm start`.
+Production: **https://amas-nopaw.vercel.app**. The Vercel project `amas-nopaw` deploys `main` from `Bonhomie95/amas` on every push.
+
+- The pages in `public/` are served from Vercel's CDN, and `vercel.json` maps `/` and `/t/<code>` to them. Only `/api/*` runs the Express function, in Frankfurt (`fra1`).
+- Settings live in Vercel → Project → Settings → Environment Variables. After changing any of them, redeploy, because a running deployment keeps its old values.
+
+| Variable | Value |
+| --- | --- |
+| `MONGODB_URI` | Atlas connection string. Allow `0.0.0.0/0` under Network Access, since Vercel has no fixed IP addresses. |
+| `SMTP_HOST`, `SMTP_PORT` | `smtp.gmail.com`, `465` (already set) |
+| `SMTP_USER`, `SMTP_PASS` | The Gmail address and its 16-character app password. Gmail allows about 500 emails a day. |
+| `STAFF_KEY` | A long passphrase for door staff |
+| `MAIL_FROM` | Optional, e.g. `"AMAS Foundation <you@gmail.com>"` |
+| `BASE_URL` | Optional. It defaults to the production domain, so only set it if you add a custom domain. |
+
+In production the server refuses to start without `MONGODB_URI`, and it never falls back to the test inbox, so a missing email setting shows up as an error rather than lost emails.
 
 ## How registration behaves
 
