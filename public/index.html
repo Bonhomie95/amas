@@ -288,7 +288,8 @@ function validate(d) {
   const e = {};
   if ((d.name || '').trim().length < 2) e.name = 'Please enter your full name.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((d.email || '').trim())) e.email = 'Please enter a valid email address.';
-  if (!/^\+?\d{7,15}$/.test((d.phone || '').replace(/[\s().-]/g, ''))) e.phone = 'Please enter a valid phone number, e.g. 0803 123 4567.';
+  const ph = (d.phone || '').replace(/[\s().-]/g, ''); // same rule as normPhone/PHONE_OK in server.js
+  if (!/^(?:\+?234|0)?0?[789]\d{9}$/.test(ph) && !/^\+(?!234)\d{7,15}$/.test(ph)) e.phone = 'Please enter a valid phone number, e.g. 0803 123 4567 (or +44… for numbers outside Nigeria).';
   if (!d.ageRange) e.ageRange = 'Please pick your age range.';
   if (!d.heardFrom) e.heardFrom = 'Please tell us how you heard about the program.';
   if (!d.attending) e.attending = 'Please let us know if you’ll be attending.';

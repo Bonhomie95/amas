@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import nodemailer from 'nodemailer';
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { join } from 'node:path';
+import { Resolver } from 'node:dns/promises';
 
 const env = process.env;
 const PORT = env.PORT || 3000;
@@ -40,6 +41,8 @@ const mongo = await new MongoClient(env.MONGODB_URI || 'mongodb://127.0.0.1:2701
 const regs = mongo.db('amas').collection('registrations');
 await regs.createIndex({ email: 1, nameKey: 1 }, { unique: true });
 await regs.createIndex({ code: 1 }, { unique: true });
+// Same inbox + same name = same person. Partial, because records saved before `inbox` existed don't have it.
+await regs.createIndex({ inbox: 1, nameKey: 1 }, { unique: true, partialFilterExpression: { inbox: { $type: 'string' } } });
 
 // ---------- helpers ----------
 const line = (v, max) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : '');
@@ -52,6 +55,35 @@ const QR = { width: 600, margin: 2, color: { dark: '#06343B', light: '#FFFFFF' }
 const sha = s => createHash('sha256').update(String(s)).digest();
 const isStaff = key => !!key && !!STAFF_KEY && timingSafeEqual(sha(key), sha(STAFF_KEY));
 const PUBLIC_FIELDS = { projection: { _id: 0, name: 1, code: 1, ageRange: 1, checkedInAt: 1 } };
+
+// One format per number: Nigerian numbers (0803…, 803…, 234803…, +2340803…) become +234XXXXXXXXXX; foreign ones keep their +country code
+const normPhone = p => {
+  p = p.replace(/[\s().-]/g, '');
+  const ng = p.match(/^(?:\+?234|0)?0?([789]\d{9})$/);
+  return ng ? `+234${ng[1]}` : p;
+};
+const PHONE_OK = /^\+234[789]\d{9}$|^\+(?!234)\d{7,15}$/;
+const prettyPhone = p => p.replace(/^\+234(\d{3})(\d{3})(\d{4})$/, '+234 $1 $2 $3');
+
+// Gmail ignores dots and +tags (and googlemail = gmail), so those count as one inbox for duplicates and the per-email cap
+const inboxOf = email => {
+  let [local, domain] = email.split('@');
+  if (domain === 'googlemail.com') domain = 'gmail.com';
+  local = local.replace(/\+.*$/, '');
+  return `${domain === 'gmail.com' ? local.replaceAll('.', '') : local}@${domain}`;
+};
+
+// Reject domains that can't receive mail (typos like gmail.con): every bounce hurts the sender reputation
+const dns = new Resolver({ timeout: 3000, tries: 2 });
+const mailDomains = new Map(); // ponytail: per-instance cache that never expires, fine for an event's lifetime
+const acceptsMail = domain => {
+  if (!mailDomains.has(domain)) mailDomains.set(domain, dns.resolveMx(domain).then(
+    mx => mx.some(m => m.exchange && m.exchange !== '.'), // a "null MX" (RFC 7505) means the domain takes no mail
+    e => (e.code === 'ENODATA' ? dns.resolve4(domain).then(a => a.length > 0, () => false) // no MX: mail falls back to the A record
+      : e.code !== 'ENOTFOUND'), // no such domain → reject; DNS timeouts and hiccups shouldn't block anyone
+  ));
+  return mailDomains.get(domain);
+};
 
 let transport;
 const EHLO = new URL(BASE_URL).hostname; // the machine hostname can be junk (e.g. "My-Mac.lan guest wan"), which SMTP servers reject
@@ -109,7 +141,7 @@ app.post('/api/register', async (req, res) => {
   const r = {
     name: line(b.name, 80),
     email: line(b.email, 254).toLowerCase(),
-    phone: line(b.phone, 24).replace(/[\s().-]/g, ''),
+    phone: normPhone(line(b.phone, 24)),
     ageRange: b.ageRange,
     heardFrom: b.heardFrom,
     heardFromOther: b.heardFrom === 'Other' ? line(b.heardFromOther, 80) : '',
@@ -124,7 +156,8 @@ app.post('/api/register', async (req, res) => {
   const errors = {};
   if (r.name.length < 2) errors.name = 'Please enter your full name.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(r.email)) errors.email = 'Please enter a valid email address.';
-  if (!/^\+?\d{7,15}$/.test(r.phone)) errors.phone = 'Please enter a valid phone number.';
+  else if (!(await acceptsMail(r.email.split('@')[1]))) errors.email = 'We can’t deliver to this email address. Please check the part after the @.';
+  if (!PHONE_OK.test(r.phone)) errors.phone = 'Please enter a valid phone number, e.g. 0803 123 4567 (or +44… for numbers outside Nigeria).';
   if (!AGE_RANGES.includes(r.ageRange)) errors.ageRange = 'Please pick your age range.';
   if (!SOURCES.includes(r.heardFrom)) errors.heardFrom = 'Please tell us how you heard about the program.';
   if (r.attending === null) errors.attending = 'Please let us know if you’ll be attending.';
@@ -132,21 +165,28 @@ app.post('/api/register', async (req, res) => {
   if (r.transport && r.pickup.length < 2) errors.pickup = 'Please tell us your area or nearest bus stop.';
   if (Object.keys(errors).length) return res.status(400).json({ errors });
 
-  const key = { email: r.email, nameKey: r.name.toLowerCase() };
-  const existing = await regs.findOne(key);
+  r.inbox = inboxOf(r.email);
+  const nameKey = r.name.toLowerCase();
+  const sameInbox = { $or: [{ inbox: r.inbox }, { email: r.email }] }; // records saved before `inbox` existed only match by email
+  const existing = await regs.findOne({ ...sameInbox, nameKey });
   if (existing?.attending) {
     // Never show an existing pass on screen (anyone could type your email); re-send it to the inbox instead.
     const recent = Date.now() - (existing.emailedAt ?? 0) < 60_000;
     return res.status(409).json({ status: 'exists', ...(recent ? { emailed: true } : await sendTicket(existing)) });
   }
-  if (!existing && (await regs.countDocuments({ email: r.email })) >= MAX_PER_EMAIL)
+  if (!existing && (await regs.countDocuments(sameInbox)) >= MAX_PER_EMAIL)
     return res.status(429).json({ error: `This email already has ${MAX_PER_EMAIL} passes. Please use a different email for more guests.` });
 
-  const doc = await regs.findOneAndUpdate(
-    key,
-    { $set: { ...r, updatedAt: new Date() }, $setOnInsert: { code: newCode(), createdAt: new Date(), checkedInAt: null } },
-    { upsert: true, returnDocument: 'after' },
-  );
+  let doc;
+  if (existing) doc = await regs.findOneAndUpdate({ _id: existing._id }, { $set: { ...r, nameKey, updatedAt: new Date() } }, { returnDocument: 'after' });
+  else {
+    doc = { ...r, nameKey, code: newCode(), createdAt: new Date(), updatedAt: new Date(), checkedInAt: null };
+    try { await regs.insertOne(doc); }
+    catch (e) { // a double-submit lost the race to its twin: that one is already sending the pass
+      if (e.code === 11000 && !e.keyPattern?.code) return res.status(409).json({ status: 'exists', emailed: true });
+      throw e;
+    }
+  }
   if (!doc.attending) return res.json({ status: 'declined' });
   res.status(201).json({ status: 'registered', code: doc.code, ...(await sendTicket(doc)) });
 });
@@ -208,7 +248,7 @@ function ticketHtml(d, url) {
   <tr><td style="padding:0 28px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF8F8;border-radius:14px"><tr><td style="padding:16px 18px;font-size:15px;line-height:1.7;color:#0B2A30">
       📅 <b>${esc(EVENT.when)}</b><br>📍 <b>${esc(EVENT.venue)}</b><br><span style="color:#5B7479;padding-left:24px">${esc(EVENT.address)}</span>${d.transport ? `
-      <br><br>🚌 <b>Free transport booked</b> from ${esc(d.pickup)}<br><span style="color:#5B7479">We’ll call or WhatsApp you on ${esc(d.phone)} with the pickup point and time.</span>` : ''}
+      <br><br>🚌 <b>Free transport booked</b> from ${esc(d.pickup)}<br><span style="color:#5B7479">We’ll call or WhatsApp you on ${esc(prettyPhone(d.phone))} with the pickup point and time.</span>` : ''}
     </td></tr></table>
   </td></tr>
   <tr><td align="center" style="padding:22px 28px 6px">
@@ -235,7 +275,7 @@ ${EVENT.title}
 Theme: ${EVENT.theme} (Deut. 7:9)
 ${EVENT.when}
 ${EVENT.venue}, ${EVENT.address}
-${d.transport ? `\nFree transport booked from ${d.pickup}. We'll call or WhatsApp you on ${d.phone} with the pickup point and time.\n` : ''}
+${d.transport ? `\nFree transport booked from ${d.pickup}. We'll call or WhatsApp you on ${prettyPhone(d.phone)} with the pickup point and time.\n` : ''}
 Your pass: ${d.code}
 Show your QR pass: ${url}
 Add to calendar: ${CAL_URL}

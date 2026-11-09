@@ -52,6 +52,9 @@ In production the server refuses to start without `MONGODB_URI`, and it never fa
 ## How registration behaves
 
 - Every person gets their own pass. Family members can share one email address (up to 10 passes per email).
+- Gmail addresses that differ only by dots or a `+tag` (and googlemail.com) count as one inbox, both for spotting the same person and for the 10-pass limit.
+- Emails must use a domain that can receive mail (checked with a DNS lookup), so typos like `gmail.con` are caught before a pass bounces.
+- Phone numbers are stored in one format: Nigerian numbers as `+234…` whichever way they were typed; numbers from other countries need their `+country code`.
 - If someone registers again with the same name and email, the pass is re-sent to that inbox rather than shown on screen. That way nobody can pull up another person's pass just by typing their email.
 - Attendees are asked whether they need free transport from anywhere in Lagos. Riders give their area or nearest bus stop, and their pass email confirms the booking.
 - "No, I can't make it" answers are saved without a pass. If that person registers again with "Yes", they get one.
@@ -60,7 +63,7 @@ In production the server refuses to start without `MONGODB_URI`, and it never fa
 ## The data
 
 Everything is in `amas.registrations`, one document per person:
-`name, email, phone, ageRange, heardFrom, heardFromOther, attending, transport, pickup, church, assistance, prayer, updates, code, createdAt, emailedAt, emailError, checkedInAt`.
+`name, email, phone, ageRange, heardFrom, heardFromOther, attending, transport, pickup, church, assistance, prayer, updates, inbox, nameKey, code, createdAt, emailedAt, emailError, checkedInAt`.
 
 - Browse or export it with MongoDB Compass (Export → CSV), or from the command line:
 
