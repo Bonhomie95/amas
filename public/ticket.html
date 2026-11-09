@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your pass · N.O.P.A.W 2.0 · AMAS Foundation</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#04363d">
+<link rel="icon" href="/img/logo-mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Outfit:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="stage" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+
+<header class="top">
+  <a class="brand" href="/"><img src="/img/logo.svg" alt="AMAS Foundation" width="114" height="36"></a>
+  <a class="pill-link" href="/#register">Register</a>
+</header>
+
+<main class="pass-wrap">
+  <div class="celebrate" id="celebrate" hidden>
+    <p class="kicker">You’re in!</p>
+    <p class="big">See you on the 11th, <span id="first"></span></p>
+    <p id="mailnote"></p>
+  </div>
+
+  <article class="pass" id="pass" aria-label="Event pass">
+    <div class="pass-main">
+      <div class="pass-head"><img src="/img/logo-mark.svg" alt="" width="42" height="42"><div><b>AMAS Foundation</b><span>N.O.P.A.W 2.0</span></div></div>
+      <p class="admit">Admit one</p>
+      <h1 class="pass-name gold-text" id="name">Loading…</h1>
+      <p class="pass-age" id="age"></p>
+      <dl class="pass-grid">
+        <div><dt>Date</dt><dd>Fri, Dec 11, 2026</dd></div>
+        <div><dt>Time</dt><dd>7:00 PM</dd></div>
+        <div><dt>Venue</dt><dd>Regal Hall, Daystar Christian Centre, Ikosi Road, Oregun, Lagos</dd></div>
+      </dl>
+    </div>
+    <div class="pass-stub">
+      <img class="qr" id="qr" alt="QR code for this pass" width="228" height="228">
+      <p class="code" id="code">AMAS-····-····</p>
+      <p class="stub-note">Show this at the entrance</p>
+      <p class="stamp" id="stamp" hidden><svg class="i" aria-hidden="true"><use href="/img/icons.svg#ok"/></svg><span></span></p>
+    </div>
+  </article>
+
+  <div class="actions" id="actions">
+    <a class="btn-gold" id="dl" href="#" download><svg class="i" aria-hidden="true"><use href="/img/icons.svg#download"/></svg>Save QR to my phone</a>
+    <a class="act" href="/nopaw.ics"><svg class="i" aria-hidden="true"><use href="/img/icons.svg#cal-plus"/></svg>Add to calendar</a>
+    <a class="act" href="https://www.google.com/maps/search/?api=1&amp;query=Daystar%20Christian%20Centre%2C%20Ikosi%20Road%2C%20Oregun%2C%20Lagos" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/img/icons.svg#nav"/></svg>Directions</a>
+    <a class="act" id="share" href="#" target="_blank" rel="noopener"><svg class="i" aria-hidden="true"><use href="/img/icons.svg#share"/></svg>Invite friends</a>
+    <a class="act" href="/?again#register"><svg class="i" aria-hidden="true"><use href="/img/icons.svg#user-plus"/></svg>Register another</a>
+  </div>
+  <p class="tip" id="tip">Each pass admits one person. Save the QR or take a screenshot in case you’re offline at the venue.</p>
+  <p class="dev" id="dev" hidden>Testing locally? <a target="_blank" rel="noopener">Open the email that was sent</a></p>
+
+  <div class="missing" id="missing" hidden>
+    <h1>We couldn’t find this pass</h1>
+    <p>Check the link in your email, or register again. It takes under a minute.</p>
+    <a class="btn-gold" href="/#register">Register now</a>
+  </div>
+</main>
+
+<footer class="foot">
+  <b>AMAS Foundation</b>
+  <p>Impacting life since 2009</p>
+  <button class="linkish" id="staff" type="button">Staff check-in</button>
+</footer>
+
+<div class="scan" id="scan" role="alertdialog" aria-modal="true" aria-labelledby="scan-title" hidden>
+  <div>
+    <svg class="i" aria-hidden="true"><use id="scan-ico" href="/img/icons.svg#ok"/></svg>
+    <h2 id="scan-title"></h2>
+    <p class="who" id="scan-who"></p>
+    <p id="scan-meta"></p>
+    <button type="button" id="scan-close">Done</button>
+    <p>Scan the next pass with your camera.</p>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const code = decodeURIComponent(location.pathname.split('/').pop());
+const ICONS = '/img/icons.svg#';
+const staffKey = {
+  get: () => { try { return localStorage.getItem('amas:staff'); } catch { return null; } },
+  set: v => { try { v ? localStorage.setItem('amas:staff', v) : localStorage.removeItem('amas:staff'); } catch {} },
+};
+const when = d => new Date(d).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Lagos' });
+const age = r => (r ? `Age ${r.replace('-', '–')}` : '');
+
+const invite = `I just got my free pass for A Night of Praise & Worship 2.0 🙌 Friday, Dec 11 · 7 PM · Daystar Christian Centre, Oregun, Lagos. Register free: ${location.origin}`;
+$('share').href = 'https://wa.me/?text=' + encodeURIComponent(invite);
+$('share').onclick = e => {
+  if (!navigator.share) return; // falls back to the WhatsApp link
+  e.preventDefault();
+  navigator.share({ title: 'A Night of Praise & Worship 2.0', text: invite }).catch(() => {});
+};
+
+async function main() {
+  let t;
+  try {
+    const res = await fetch(`/api/tickets/${encodeURIComponent(code)}`);
+    if (res.status === 404) return missing();
+    if (!res.ok) throw new Error();
+    t = await res.json();
+  } catch {
+    return missing('We couldn’t load your pass', 'Check your connection and refresh the page.');
+  }
+  $('name').textContent = t.name;
+  $('age').textContent = age(t.ageRange);
+  $('qr').src = t.qr;
+  $('code').textContent = t.code;
+  $('dl').href = t.qr;
+  $('dl').download = `${t.code}.png`;
+  stamp(t.checkedInAt);
+  document.title = `${t.name.split(' ')[0]}’s pass · N.O.P.A.W 2.0`;
+  if (new URLSearchParams(location.search).has('new')) celebrate(t);
+  if (staffKey.get()) checkIn();
+}
+
+function missing(title, text) {
+  $('pass').hidden = $('actions').hidden = $('tip').hidden = true;
+  if (title) {
+    $('missing').querySelector('h1').textContent = title;
+    $('missing').querySelector('p').textContent = text;
+  } else if (staffKey.get()) showScan('invalid', {});
+  $('missing').hidden = false;
+}
+
+function stamp(at) {
+  if (!at) return;
+  $('stamp').hidden = false;
+  $('stamp').querySelector('span').textContent = `Checked in · ${when(at)}`;
+}
+
+function celebrate(t) {
+  let info = {};
+  try { info = JSON.parse(sessionStorage.getItem('amas:new')) || {}; } catch {}
+  $('first').textContent = t.name.split(' ')[0];
+  $('mailnote').textContent = info.emailed === false
+    ? 'We couldn’t email your pass just now, so save it here: tap “Save QR to my phone” or take a screenshot.'
+    : `We’ve emailed your pass${info.email ? ` to ${info.email}` : ''}. Can’t see it? Check spam or promotions.`;
+  if (info.preview) {
+    $('dev').hidden = false;
+    $('dev').querySelector('a').href = info.preview;
+  }
+  $('celebrate').hidden = false;
+  history.replaceState(null, '', location.pathname); // a refresh shouldn't celebrate twice
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const box = document.createElement('div');
+  box.className = 'confetti';
+  box.setAttribute('aria-hidden', 'true');
+  const colors = ['#ffb300', '#ffe08a', '#ffffff', '#3fc1c9', '#028f99'];
+  for (let i = 0; i < 80; i++) {
+    const p = document.createElement('i');
+    p.style.cssText = `left:${Math.random() * 100}%;width:${6 + Math.random() * 6}px;height:${9 + Math.random() * 9}px;background:${colors[i % 5]};animation-duration:${2.2 + Math.random() * 2}s;animation-delay:${Math.random() * 0.5}s;--dx:${(Math.random() - 0.5) * 240}px;--r:${(Math.random() - 0.5) * 1080}deg`;
+    box.append(p);
+  }
+  document.body.append(box);
+  setTimeout(() => box.remove(), 5000);
+}
+
+// ---- door staff: scanning a pass on a device in staff mode checks it in
+async function checkIn() {
+  try {
+    const res = await fetch(`/api/tickets/${encodeURIComponent(code)}/checkin`, { method: 'POST', headers: { 'X-Staff-Key': staffKey.get() } });
+    const r = await res.json();
+    if (res.status === 401) {
+      staffKey.set(null);
+      staffLabel();
+      return alert('That staff key is not right. Tap “Staff check-in” at the bottom to try again.');
+    }
+    showScan({ 'checked-in': 'ok', already: 'already' }[r.status] || 'invalid', r);
+    stamp(r.checkedInAt);
+  } catch {
+    alert('Could not reach the server. Check your connection and scan again.');
+  }
+}
+
+const SCAN = { ok: ['ok', 'Welcome in!'], already: ['warn', 'Already used'], invalid: ['bad', 'Not a valid pass'] };
+function showScan(state, r) {
+  const [icon, title] = SCAN[state];
+  $('scan').dataset.s = state;
+  $('scan-ico').setAttribute('href', ICONS + icon);
+  $('scan-title').textContent = title;
+  $('scan-who').textContent = r.name || '';
+  $('scan-meta').textContent = state === 'already' ? `First scanned ${when(r.checkedInAt)}` : state === 'ok' ? age(r.ageRange) : 'No registration matches this code.';
+  $('scan').hidden = false;
+  $('scan-close').focus();
+}
+$('scan-close').onclick = () => { $('scan').hidden = true; };
+
+function staffLabel() { $('staff').textContent = staffKey.get() ? 'Staff mode is on · turn off' : 'Staff check-in'; }
+$('staff').onclick = () => {
+  if (staffKey.get()) return staffKey.set(null), staffLabel();
+  const key = prompt('Staff key (from the event team):');
+  if (!key?.trim()) return;
+  staffKey.set(key.trim());
+  staffLabel();
+  checkIn();
+};
+
+staffLabel();
+main();
+</script>
+</body>
+</html>

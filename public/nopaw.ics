@@ -1,0 +1,25 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//AMAS Foundation//NOPAW 2.0//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:nopaw-2-2026-12-11@amasfoundation
+DTSTAMP:20261109T000000Z
+DTSTART:20261211T180000Z
+DTEND:20261211T220000Z
+SUMMARY:A Night of Praise & Worship 2.0 (N.O.P.A.W 2.0)
+LOCATION:Regal Hall\, Daystar Christian Centre\, Plot A3C\, Ikosi Road\, Oregun\, Lagos
+DESCRIPTION:Theme: Covenant Keeping God (Deut. 7:9). Bring your QR pass. Entry is free.
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:A Night of Praise & Worship is tomorrow at 7 PM
+TRIGGER:-P1D
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:A Night of Praise & Worship starts at 7 PM. Have your QR pass ready.
+TRIGGER:-PT3H
+END:VALARM
+END:VEVENT
+END:VCALENDAR
