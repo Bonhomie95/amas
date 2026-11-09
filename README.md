@@ -41,10 +41,10 @@ Production: **https://amas-nopaw.vercel.app**. The Vercel project `amas-nopaw` d
 | Variable | Value |
 | --- | --- |
 | `MONGODB_URI` | Atlas connection string. Allow `0.0.0.0/0` under Network Access, since Vercel has no fixed IP addresses. |
-| `SMTP_HOST`, `SMTP_PORT` | `smtp.gmail.com`, `465` (already set) |
-| `SMTP_USER`, `SMTP_PASS` | The Gmail address and its 16-character app password. Gmail allows about 500 emails a day. |
+| `SMTP_HOST`, `SMTP_PORT` | The AWS SES Mail Manager ingress endpoint, `587` (already set) |
+| `SMTP_USER`, `SMTP_PASS` | The ingress point ID (`inp-…`) and its password |
+| `MAIL_FROM`, `MAIL_FROM_NAME` | `alerts@envelock.org`, `AMAS Foundation` (already set). AWS must be allowed to send from that address. |
 | `STAFF_KEY` | A long passphrase for door staff |
-| `MAIL_FROM` | Optional, e.g. `"AMAS Foundation <you@gmail.com>"` |
 | `BASE_URL` | Optional. It defaults to the production domain, so only set it if you add a custom domain. |
 
 In production the server refuses to start without `MONGODB_URI`, and it never falls back to the test inbox, so a missing email setting shows up as an error rather than lost emails.

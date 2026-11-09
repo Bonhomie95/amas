@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { MongoClient } from 'mongodb';
 
+if (process.env.SMTP_HOST) throw new Error('SMTP_HOST is set: the server would send real emails to fake test addresses, and the bounces hurt your sender reputation. Test against a server using the Ethereal inbox.');
 const BASE = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
 const KEY = process.env.STAFF_KEY;
 const email = `test-${Date.now()}@example.test`;

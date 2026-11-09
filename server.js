@@ -30,7 +30,10 @@ const CAL_URL = 'https://calendar.google.com/calendar/render?' + new URLSearchPa
 });
 const MAP_URL = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent('Daystar Christian Centre, Ikosi Road, Oregun, Lagos');
 
-if (env.VERCEL && !env.MONGODB_URI) throw new Error('MONGODB_URI is not set. Add it in Vercel → Settings → Environment Variables.');
+if (env.VERCEL) { // fail loudly on bad production config instead of timing out or emailing broken QR links
+  if (!env.MONGODB_URI) throw new Error('MONGODB_URI is not set. Add it in Vercel → Settings → Environment Variables.');
+  for (const k of ['MONGODB_URI', 'BASE_URL']) if (/localhost|127\.0\.0\.1/.test(env[k] ?? '')) throw new Error(`${k} points at localhost. On Vercel use the real value (or leave BASE_URL unset).`);
+}
 const mongo = await new MongoClient(env.MONGODB_URI || 'mongodb://127.0.0.1:27017', { maxPoolSize: 10 }).connect(); // Atlas free tier caps connections
 const regs = mongo.db('amas').collection('registrations');
 await regs.createIndex({ email: 1, nameKey: 1 }, { unique: true });
@@ -51,7 +54,8 @@ const PUBLIC_FIELDS = { projection: { _id: 0, name: 1, code: 1, ageRange: 1, che
 let transport;
 const mailer = () => (transport ??= (env.SMTP_HOST
   ? Promise.resolve(nodemailer.createTransport({
-      host: env.SMTP_HOST, port: +(env.SMTP_PORT || 587), secure: String(env.SMTP_PORT).endsWith('465'), // 465/2465 = implicit TLS
+      host: env.SMTP_HOST, port: +(env.SMTP_PORT || 587),
+      secure: String(env.SMTP_PORT).endsWith('465'), requireTLS: true, // 465/2465 = implicit TLS, others must STARTTLS before the password goes out
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS }, connectionTimeout: 10_000, socketTimeout: 20_000,
     }))
   : env.VERCEL_ENV === 'production'
@@ -66,7 +70,7 @@ async function sendTicket(doc) {
   const url = passUrl(doc.code);
   try {
     const info = await (await mailer()).sendMail({
-      from: env.MAIL_FROM || `"AMAS Foundation" <${env.SMTP_USER || 'tickets@ethereal.email'}>`,
+      from: { name: env.MAIL_FROM_NAME || 'AMAS Foundation', address: env.MAIL_FROM || (env.SMTP_USER?.includes('@') ? env.SMTP_USER : 'tickets@ethereal.email') },
       to: doc.email,
       subject: `Your pass for ${EVENT.title} 🎟️`,
       html: ticketHtml(doc, url),
